@@ -1,0 +1,3 @@
+﻿# temp build parts, screenshots and QA scripts
+.temp/
+*.png
