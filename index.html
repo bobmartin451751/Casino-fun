@@ -824,6 +824,7 @@ function changeCoins(n) {
   saveState();
 }
 function statWager(n) { state.stats.wagered += n; saveState(); }
+function statUnwager(n) { state.stats.wagered = Math.max(0, state.stats.wagered - n); saveState(); }
 function statWin(n) {
   state.stats.won += n;
   if (n > state.stats.biggestWin) state.stats.biggestWin = n;
@@ -2031,6 +2032,7 @@ async function bjDeal() {
       bjLog('You take insurance for ' + fmt(ins) + '.');
       if (dealerBJ) {
         changeCoins(ins * 3);
+        statWin(ins * 2);
         bjLog('<span class="hl">Dealer has blackjack \u2014 insurance pays 2:1.</span>');
       } else {
         bjLog('No dealer blackjack \u2014 insurance lost.');
@@ -2041,6 +2043,7 @@ async function bjDeal() {
     BJ.holeHidden = false;
     renderBJ();
     await sleep(pace(700));
+    if (!dealerBJ) await bjBotsPlay();
     return bjSettle();
   }
   bjAdvance();
@@ -2143,7 +2146,28 @@ function bjAdvance() {
     h.done = true;
     BJ.active++;
   }
-  bjDealerPlay();
+  bjBotsPlay().then(bjDealerPlay);
+}
+
+/* bots play basic strategy: hit below 17, stand on hard or soft 17+ */
+async function bjBotsPlay() {
+  for (let i = 0; i < BJ.bots.length; i++) {
+    const b = BJ.bots[i];
+    if (!b.cards.length) continue;
+    BJ.botActing = i;
+    renderBJ();
+    await sleep(pace(300));
+    let hits = 0;
+    while (bjValue(b.cards).total < 17 && hits++ < 10) {
+      b.cards.push(bjDraw());
+      sfx('card');
+      renderBJ();
+      await sleep(pace(430));
+    }
+    b.done = true;
+    BJ.botActing = -1;
+  }
+  renderBJ();
 }
 
 async function bjDealerPlay() {
@@ -2376,8 +2400,6 @@ function buildRoulette() {
     addOut(`${d + 1}${['st', 'nd', 'rd'][d]} 12`, nums, 2, '', cols);
   }
   for (let c = 0; c < 3; c++) {
-    const nums = [];
-    for (let r = 0; r < 3; r++) for (let i = 0; i < 12; i++) nums.push(numAt(i, r));
     // column c of the physical table == every 3rd number
     const colNums = Array.from({ length: 12 }, (_, i) => i * 3 + c + 1);
     addOut('Col ' + (c + 1), colNums, 2, '', cols);
@@ -2453,13 +2475,14 @@ function undoBet() {
   const back = b.chips.pop() || b.amount;
   b.amount -= back;
   changeCoins(back);
+  statUnwager(back);
   sfx('click');
   if (b.amount <= 0) RL.bets = RL.bets.filter(x => x !== b);
   renderRouletteBets();
 }
 function refundBets() {
   const total = RL.bets.reduce((a, b) => a + b.amount, 0);
-  if (total) changeCoins(total);
+  if (total) { changeCoins(total); statUnwager(total); }
 }
 
 function renderRouletteBets() {
@@ -2541,6 +2564,7 @@ async function spinWheel() {
   ball.style.transform = 'rotate(0deg)';
   void ball.offsetWidth;
   const turns = 5 * 360 + winIdx * step + (Math.random() * 2 - 1) * 4;
+  ball.style.transition = `transform ${FAST ? 1 : 4.2}s cubic-bezier(.15,.75,.07,1)`;
   ball.classList.add('spin');
   ball.style.transform = `rotate(${turns}deg)`;
   sfx('spin');
@@ -2579,7 +2603,10 @@ async function spinWheel() {
     rec.stack += ret;
     if (ret > b.amount) { rec.wins += ret - b.amount; if (ret - b.amount > rec.biggest) rec.biggest = ret - b.amount; }
     else if (!ret) rec.losses += b.amount;
-    if (rec.stack < 100) rec.stack = 1000;
+    if (rec.stack < 100) { rec.stack = 1000; toast(`${b.name} buys in for 1,000`); }
+    if (b._bet) b.bet = `${b._bet.label} \u2014 ${ret ? 'paid ' + fmt(ret) : 'lost ' + fmt(b.amount)}`;
+    b._bet = null;
+    b.amount = 0;
   });
   saveState();
   renderRouletteBots();
@@ -2633,6 +2660,7 @@ function enterBaccarat() {
   if (!BAC.shoe.length) BAC.shoe = shuffle(newDeck(8));
   BAC.player = [];
   BAC.banker = [];
+  BAC.winner = null;
   BAC.betType = 'player';
   BAC.betAmount = clamp(BAC.betAmount || 20, 0, state.coins);
   BAC.phase = 'bet';
@@ -3053,7 +3081,14 @@ if (state.coins <= 0) {
   overShown = false;
   checkBust();
 }
-window.addEventListener('beforeunload', saveState);
+window.addEventListener('beforeunload', () => {
+  // chips sitting on the roulette felt come back when the tab closes
+  if (currentGame === 'roulette' && !RL.spinning && RL.bets && RL.bets.length) {
+    state.coins += RL.bets.reduce((a, b) => a + b.amount, 0);
+    RL.bets = [];
+  }
+  saveState();
+});
 
 /* expose a couple of helpers for quick console testing */
 window.CASINO = { state, P, BJ, RL, BAC, openGame, goLobby, eval5, best5, bestHoldem, bestOmaha, cmpScore };
