@@ -95,7 +95,7 @@ button{font-family:inherit;cursor:pointer}
 
 /* ---------- "while you were away" bar ---------- */
 .away-bar{
-  position:sticky;top:56px;z-index:45;display:none;align-items:center;gap:12px;flex-wrap:wrap;
+  position:relative;z-index:45;display:none;align-items:center;gap:12px;flex-wrap:wrap;
   margin:0 20px;padding:9px 16px;border-radius:0 0 10px 10px;
   background:linear-gradient(180deg, rgba(32,25,12,.97), rgba(16,13,7,.92));
   border:1px solid var(--line);border-top:none;
@@ -351,6 +351,7 @@ input[type=range]::-webkit-slider-thumb{
 }
 .log .hl{color:var(--gold-2)}
 .log .you{color:#8fd6ff}
+.log:empty{display:none}
 .log div{animation:fadeIn .3s ease}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
@@ -526,6 +527,8 @@ input[type=range]::-webkit-slider-thumb{
 }
 .balance-note{font-size:11px;color:var(--muted);letter-spacing:.08em}
 @media (max-width:980px){
+  body{touch-action:manipulation}
+  .btn.sm{min-height:36px;padding:8px 14px}
   .roulette-wrap{grid-template-columns:1fr}
   .lobby-foot{grid-template-columns:1fr}
   .poker-felt{height:auto;min-height:520px;border-radius:26px}
@@ -538,13 +541,77 @@ input[type=range]::-webkit-slider-thumb{
   .bj-felt{height:auto;min-height:420px}
 }
 @media (max-width:640px){
-  .brand{font-size:14px;letter-spacing:.12em}
-  .hud-coins{font-size:16px;min-width:110px;padding:6px 12px}
-  .hud-coins .coin-ico{width:18px;height:18px}
-  .screen{padding:14px 10px 50px}
-  .card{--cw:76px;--ch:108px}
+  /* ---------- phone layout ---------- */
+  body{touch-action:manipulation}
+  .screen{padding:12px 8px 56px}
+  .sec-head{flex-wrap:wrap;gap:8px;margin-bottom:6px}
+  .sec-head h2{font-size:19px}
+  .sec-head .sub{display:none}
+  .table-tag{display:none}
+  .balance-note{display:none}
+
+  /* HUD: brand + coins + three tappable buttons inside 390px */
+  #hud{gap:8px;padding:8px 10px}
+  .brand{font-size:12px;letter-spacing:.1em}
+  .brand small{display:none}
+  .hud-coins{font-size:15px;min-width:0;padding:6px 10px;gap:6px;margin-left:auto}
+  .hud-coins .coin-ico{width:16px;height:16px}
+  .hud-actions{gap:6px}
+  .hbtn{min-width:44px;min-height:38px;padding:0 10px;font-size:13px}
+
+  /* cards: five board cards must fit 374px of usable width */
+  .board{gap:5px;min-height:0}
+  .board .card{--cw:56px;--ch:78px}
+  .card.sm{--cw:48px;--ch:68px}
+  .card.xs{--cw:40px;--ch:56px}
   .seat{width:120px;padding:6px}
   .pos-1,.pos-4{bottom:150px}
+
+  /* keep the bet controls within reach */
+  .actionbar{position:sticky;bottom:0;z-index:30;flex-wrap:wrap;gap:8px;padding:10px 8px;margin-top:8px;
+    background:linear-gradient(180deg, rgba(10,12,14,.72), rgba(10,12,14,.98));
+    border-top:1px solid var(--line)}
+  .actionbar .btn{min-height:42px}
+  .raise-wrap{flex:1 1 100%;min-width:0;max-width:100%;gap:8px;padding:0}
+  input[type=range]{width:100%;min-width:0;flex:1}
+  .raise-amt{min-width:52px;font-size:16px}
+
+  /* tables get shorter so the action bar stays near the fold */
+  .poker-felt{height:520px;min-height:520px;padding:8px 6px 14px;border-radius:22px}
+  .pos-0{bottom:4px}
+  .pos-1{left:5%;bottom:120px}
+  .pos-4{right:5%;bottom:120px}
+  .pos-2{left:5%;top:8px}
+  .pos-3{right:5%;top:8px}
+  .poker-center{top:40%}
+  .pos-0 .seat{width:118px}
+  .seat{width:118px;padding:5px}
+  .bj-felt{min-height:240px!important;border-width:10px}
+  .bac-areas{gap:12px}
+  .bac-side{padding:6px}
+  .bac-side .card{--cw:48px;--ch:68px}
+  .bac-side h4{font-size:10px;letter-spacing:.2em}
+  .bead{display:none}
+
+  /* roulette: let the felt scroll instead of shrinking cells to nothing */
+  .roulette-wrap{grid-template-columns:minmax(0,1fr);gap:14px}
+  .wheel-col,.bet-col{min-width:0}
+  .bet-col{padding:10px}
+  .bet-footer .btn{min-height:40px}
+  .bet-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  .bet-table{min-width:560px}
+  .ncell{font-size:13px}
+  .outside{grid-template-columns:repeat(3,1fr)}
+  .wheel-box{width:min(280px,74vw);max-width:280px;margin:0 auto}
+
+  .log{max-height:150px}
+  .away-bar{margin:0 8px;font-size:12px;padding:8px 10px}
+  .lobby-hero h1{font-size:22px}
+}
+@media (max-width:380px){
+  .brand{font-size:10px;letter-spacing:.06em}
+  .hbtn{min-width:38px;padding:0 6px}
+  .board .card{--cw:50px;--ch:70px}
 }
 </style>
 </head>
@@ -689,10 +756,12 @@ input[type=range]::-webkit-slider-thumb{
       <div class="bots-row" id="rlBots"></div>
     </div>
     <div class="bet-col">
-      <div class="bet-table">
-        <div class="bt-grid" id="btGrid"></div>
-        <div class="outside" id="btOutside"></div>
-        <div class="col-bets" id="btCols"></div>
+      <div class="bet-scroll">
+        <div class="bet-table">
+          <div class="bt-grid" id="btGrid"></div>
+          <div class="outside" id="btOutside"></div>
+          <div class="col-bets" id="btCols"></div>
+        </div>
       </div>
       <div class="bet-footer">
         <div class="chips" id="rlChips"></div>
@@ -806,6 +875,7 @@ function saveState() {
 }
 
 /* bot bankrolls persist; bots rebuy if broke */
+const BOT_REBUY = 20;      // a regular only tops up when they truly cannot bet
 function botRecord(id) {
   if (!state.bots[id]) {
     state.bots[id] = {
@@ -1357,6 +1427,9 @@ async function startHand() {
   P.deck = shuffle(newDeck(1));
   P.turnSeat = -1;
   P.playerWon = 0;
+  /* clear the idle prompt so "Deal Me In" cannot linger over the new hand */
+  const bar = $('#pkActions');
+  if (bar) bar.innerHTML = '';
 
   if (state.coins < P.bb) { P.busy = false; checkBust(); showPokerIdle(); return; }
 
@@ -1365,9 +1438,9 @@ async function startHand() {
     s.bet = 0; s.total = 0; s.acted = false; s.lastAction = ''; s.showCards = false;
     if (s.isPlayer) s.stack = state.coins;
     if (!s.isPlayer) {
-      if (s.stack < P.bb * 3) {
+      if (s.stack < BOT_REBUY) {
         const rec = botRecord(s.id);
-        if (rec.stack < P.bb * 3) rec.stack = 1000;
+        if (rec.stack < BOT_REBUY) rec.stack = 1000;
         s.stack = rec.stack;
         s.startStack = s.stack;
         toast(`${s.name} reloads to ${fmt(s.stack)}`);
@@ -1776,7 +1849,7 @@ async function concludeHand() {
       if (delta > 0) { rec.wins += delta; if (delta > rec.biggest) rec.biggest = delta; }
       else rec.losses += -delta;
     }
-    if (botRecord(s.id).stack < 100) { botRecord(s.id).stack = 1000; toast(`${s.name} buys back in for 1,000`); }
+    if (botRecord(s.id).stack < BOT_REBUY) { botRecord(s.id).stack = 1000; toast(`${s.name} buys back in for 1,000`); }
     s.stack = botRecord(s.id).stack;
     s.startStack = s.stack;
     if (delta < 0) s.tilt = Math.min(3, (s.tilt || 0) + 0.35);
@@ -2179,25 +2252,38 @@ function bjAdvance() {
   bjBotsPlay().then(bjDealerPlay);
 }
 
-/* bots play basic strategy: hit below 17, stand on hard or soft 17+ */
+/* basic strategy: stand on 12+ against a weak dealer card, hit otherwise */
+function bjBotShouldHit(cards, dealerUp) {
+  const v = bjValue(cards);
+  if (!dealerUp || v.total >= 17) return false;
+  if (v.soft) return v.total < 17;
+  const up = dealerUp.r === 1 ? 11 : Math.min(10, dealerUp.r);
+  if (v.total === 12) return up <= 3 || up >= 7;
+  return up >= 7;
+}
+
+/* bots act on their own: basic strategy against the dealer's upcard */
 async function bjBotsPlay() {
-  for (let i = 0; i < BJ.bots.length; i++) {
-    const b = BJ.bots[i];
-    if (!b.cards.length) continue;
-    BJ.botActing = i;
-    renderBJ();
-    await sleep(pace(300));
-    let hits = 0;
-    while (bjValue(b.cards).total < 17 && hits++ < 10) {
-      b.cards.push(bjDraw());
-      sfx('card');
+  try {
+    for (let i = 0; i < BJ.bots.length; i++) {
+      const b = BJ.bots[i];
+      if (!b.cards.length) continue;
+      BJ.botActing = i;
       renderBJ();
-      await sleep(pace(430));
+      await sleep(pace(300));
+      let hits = 0;
+      while (bjBotShouldHit(b.cards, BJ.dealer[0]) && hits++ < 10) {
+        b.cards.push(bjDraw());
+        sfx('card');
+        renderBJ();
+        await sleep(pace(430));
+      }
+      b.done = true;
     }
-    b.done = true;
+  } finally {
     BJ.botActing = -1;
+    renderBJ();
   }
-  renderBJ();
 }
 
 async function bjDealerPlay() {
@@ -2262,7 +2348,7 @@ function bjSettle() {
     rec.stack += ret;
     if (ret > b.bet) { rec.wins += ret - b.bet; if (ret - b.bet > rec.biggest) rec.biggest = ret - b.bet; }
     else if (!ret) rec.losses += b.bet;
-    if (rec.stack < 100) { rec.stack = 1000; toast(`${b.name} buys back in for 1,000`); }
+    if (rec.stack < BOT_REBUY) { rec.stack = 1000; toast(`${b.name} buys back in for 1,000`); }
     saveState();
   });
 
@@ -2637,7 +2723,7 @@ async function spinWheel() {
     rec.stack += ret;
     if (ret > b.amount) { rec.wins += ret - b.amount; if (ret - b.amount > rec.biggest) rec.biggest = ret - b.amount; }
     else if (!ret) rec.losses += b.amount;
-    if (rec.stack < 100) { rec.stack = 1000; toast(`${b.name} buys in for 1,000`); }
+    if (rec.stack < BOT_REBUY) { rec.stack = 1000; toast(`${b.name} buys in for 1,000`); }
     if (b._bet) b.bet = `${b._bet.label} \u2014 ${ret ? 'paid ' + fmt(ret) : 'lost ' + fmt(b.amount)}`;
     b._bet = null;
     b.amount = 0;
@@ -2917,7 +3003,7 @@ function bacSettle(p, b) {
     bot.result = payout > bot.amount ? '+' + fmt(payout - bot.amount) : payout === bot.amount ? 'push' : '-' + fmt(bot.amount);
     if (payout > bot.amount) { rec.wins += payout - bot.amount; if (payout - bot.amount > rec.biggest) rec.biggest = payout - bot.amount; }
     else if (!payout) rec.losses += bot.amount;
-    if (rec.stack < 100) { rec.stack = 1000; toast(`${bot.name} buys in for 1,000`); }
+    if (rec.stack < BOT_REBUY) { rec.stack = 1000; toast(`${bot.name} buys in for 1,000`); }
   });
   saveState();
   statRound('baccarat');
@@ -2947,7 +3033,6 @@ const AMBIENT_HAND_MS = {
 };
 const AMBIENT_MAX_HANDS = 12;            // per table, per catch-up
 const AMBIENT_MAX_ELAPSED = 60 * 60 * 1000;
-const AMBIENT_REBUY = 20;                // only top up a bot that can no longer bet
 const AMBIENT_TITLE = {
   holdem: "Texas Hold'em", omaha: 'Omaha', blackjack: 'Blackjack',
   roulette: 'Roulette', baccarat: 'Baccarat'
@@ -2960,23 +3045,17 @@ function ambientState() {
   return state.ambient;
 }
 
-/* bot money, without the per-call save/sfx the on-screen helpers do */
-function ambientCredit(id, delta) {
-  const rec = botRecord(id);
-  rec.stack = Math.max(0, Math.round(rec.stack + delta));
-  if (delta > 0) {
-    rec.wins += delta;
-    if (delta > rec.biggest) rec.biggest = delta;
-  } else if (delta < 0) {
-    rec.losses += -delta;
-  }
-  return rec;
-}
+/* top-ups are house money, not winnings: remember how much each bot was given */
+let ambientTopUps = {};
 function ambientTopUp(ids) {
   const a = ambientState();
   ids.forEach(id => {
     const rec = botRecord(id);
-    if (rec.stack < AMBIENT_REBUY) { rec.stack = 1000; a.rebuys++; }
+    if (rec.stack < BOT_REBUY) {
+      ambientTopUps[id] = (ambientTopUps[id] || 0) + (1000 - rec.stack);
+      rec.stack = 1000;
+      a.rebuys++;
+    }
   });
 }
 function ambientTrack(deltas, id, delta) {
@@ -2988,7 +3067,6 @@ function ambientPokerHand(table) {
   const ids = AMBIENT_POKER_ROSTER[table];
   const deck = shuffle(newDeck(1));
   const board = deck.splice(0, 5);
-  const deltas = {};
   const live = [];
   let pot = 0;
 
@@ -3016,34 +3094,28 @@ function ambientPokerHand(table) {
   const winners = scored.filter(h => cmpScore(h.score, top) === 0);
 
   const share = Math.floor(pot / winners.length);
-  let rest = pot - share * winners.length;
+  const rest = pot - share * winners.length;
   winners.forEach((w, i) => {
-    const add = share + (i < rest ? 1 : 0);
-    botRecord(w.id).stack += add;
-    ambientTrack(deltas, w.id, add - w.ante);
+    botRecord(w.id).stack += share + (i < rest ? 1 : 0);
   });
-  scored.forEach(h => { if (!winners.includes(h)) ambientTrack(deltas, h.id, -h.ante); });
 
   ambientTopUp(ids);
   return {
     table,
     text: winners.length > 1
       ? `${winners.map(w => botName(w.id)).join(' & ')} chop ${fmt(pot)} (${winners[0].name})`
-      : `${botName(winners[0].id)} takes ${fmt(pot)} with ${winners[0].name}`,
-    deltas
+      : `${botName(winners[0].id)} takes ${fmt(pot)} with ${winners[0].name}`
   };
 }
 
 /* ---------------- blackjack: one dealer, both regulars ---------------- */
 function ambientBlackjackHand() {
   const ids = ['reggie', 'ivy'];
-  const shoe = shuffle(newDeck(6));
-  let spare = shoe;
+  let shoe = shuffle(newDeck(6));
   const draw = () => {
-    if (!spare.length) spare = shuffle(newDeck(6));
-    return spare.pop();
+    if (!shoe.length) shoe = shuffle(newDeck(6));
+    return shoe.pop();
   };
-  const deltas = {};
   const dealer = [draw(), draw()];
   const seats = [];
 
@@ -3058,7 +3130,7 @@ function ambientBlackjackHand() {
 
   seats.forEach(s => {
     let guard = 0;
-    while (bjValue(s.cards).total < 17 && guard++ < 12) s.cards.push(draw());
+    while (bjBotShouldHit(s.cards, dealer[0]) && guard++ < 12) s.cards.push(draw());
   });
   const liveHand = seats.some(s => bjValue(s.cards).total <= 21);
   if (liveHand) {
@@ -3079,22 +3151,19 @@ function ambientBlackjackHand() {
     else if (dv.total > 21 || v.total > dv.total) { ret = s.bet * 2; res = 'won'; }
     else if (v.total === dv.total) { ret = s.bet; res = 'pushed'; }
     botRecord(s.id).stack += ret;
-    ambientTrack(deltas, s.id, ret - s.bet);
     bits.push(`${botName(s.id)} ${res}`);
   });
 
   ambientTopUp(ids);
   return {
     table: 'blackjack',
-    text: `dealer ${dv.total > 21 ? 'bust' : dv.total} \u2014 ${bits.join(', ')}`,
-    deltas
+    text: `dealer ${dv.total > 21 ? 'bust' : dv.total} \u2014 ${bits.join(', ')}`
   };
 }
 
 /* ---------------- roulette: one spin, both regulars ---------------- */
 function ambientRouletteSpin() {
   const ids = ['mona', 'vince'];
-  const deltas = {};
   const outsides = rouletteOutsides();
   const winNum = RL_ORDER[rnd(37)];
   const bits = [];
@@ -3110,7 +3179,6 @@ function ambientRouletteSpin() {
     const ret = won ? amount * (bet.pay + 1) : 0;
     rec.stack = Math.max(0, rec.stack - amount);
     rec.stack += ret;
-    ambientTrack(deltas, id, ret - amount);
     bits.push(`${botName(id)} ${won ? 'paid ' + fmt(ret) : 'lost ' + fmt(amount)}`);
   });
   if (!bits.length) { ambientTopUp(ids); return null; }
@@ -3118,15 +3186,13 @@ function ambientRouletteSpin() {
   ambientTopUp(ids);
   return {
     table: 'roulette',
-    text: `${winNum} ${winNum === 0 ? 'green' : isRed(winNum) ? 'red' : 'black'} \u2014 ${bits.join(', ')}`,
-    deltas
+    text: `${winNum} ${winNum === 0 ? 'green' : isRed(winNum) ? 'red' : 'black'} \u2014 ${bits.join(', ')}`
   };
 }
 
 /* ---------------- baccarat: punto banco, shared third-card rules ---------------- */
 function ambientBaccaratHand() {
   const ids = ['lu', 'deacon'];
-  const deltas = {};
   let shoe = shuffle(newDeck(8));
   const draw = () => {
     if (!shoe.length) shoe = shuffle(newDeck(8));
@@ -3157,7 +3223,6 @@ function ambientBaccaratHand() {
     else if (side === 'banker' && w === 'B') ret = amount + Math.floor(amount * 0.95);
     rec.stack = Math.max(0, rec.stack - amount);
     rec.stack += ret;
-    ambientTrack(deltas, id, ret - amount);
     bits.push(`${botName(id)} ${ret > amount ? 'won ' + fmt(ret - amount) : ret === amount ? 'pushed' : 'lost ' + fmt(amount)}`);
   });
   if (!bits.length) { ambientTopUp(ids); return null; }
@@ -3165,8 +3230,7 @@ function ambientBaccaratHand() {
   ambientTopUp(ids);
   return {
     table: 'baccarat',
-    text: `player ${pt}, banker ${bt}${w === 'T' ? ' (tie)' : ''} \u2014 ${bits.join(', ')}`,
-    deltas
+    text: `player ${pt}, banker ${bt}${w === 'T' ? ' (tie)' : ''} \u2014 ${bits.join(', ')}`
   };
 }
 
@@ -3194,7 +3258,11 @@ function settleTableAmbient(table) {
 
   const ids = BOT_DEFS.map(d => d.id);
   const before = {};
-  ids.forEach(id => { before[id] = botRecord(id).stack; });
+  const topUpsBefore = {};
+  ids.forEach(id => {
+    before[id] = botRecord(id).stack;
+    topUpsBefore[id] = ambientTopUps[id] || 0;
+  });
   const rebuysBefore = a.rebuys || 0;
   let played = 0, last = null;
   for (let i = 0; i < wanted; i++) {
@@ -3205,12 +3273,16 @@ function settleTableAmbient(table) {
   }
   if (!played) return null;
 
+  /* a cage top-up is house money, not a win: report only the gambling result */
   const deltas = {};
+  const toppedUp = {};
   ids.forEach(id => {
-    const d = botRecord(id).stack - before[id];
+    const topUp = (ambientTopUps[id] || 0) - topUpsBefore[id];
+    if (topUp) toppedUp[id] = topUp;
+    const d = botRecord(id).stack - before[id] - topUp;
     if (d) deltas[id] = d;
   });
-  return { table, hands: played, deltas, last, rebuys: (a.rebuys || 0) - rebuysBefore };
+  return { table, hands: played, deltas, toppedUp, last, rebuys: (a.rebuys || 0) - rebuysBefore };
 }
 
 /* settle every table except `exceptId` (the one the player is watching) */
@@ -3237,18 +3309,26 @@ function ambientBanner(rows, lobby) {
   if (!rows || !rows.length) return;
   const hands = rows.reduce((a, r) => a + r.hands, 0);
   const agg = {};
-  rows.forEach(r => Object.keys(r.deltas).forEach(id => ambientTrack(agg, id, r.deltas[id])));
+  const tops = {};
+  rows.forEach(r => {
+    Object.keys(r.deltas).forEach(id => ambientTrack(agg, id, r.deltas[id]));
+    Object.keys(r.toppedUp || {}).forEach(id => ambientTrack(tops, id, r.toppedUp[id]));
+  });
   const parts = Object.keys(agg)
     .filter(id => Math.round(agg[id]) !== 0)
     .sort((x, y) => Math.abs(agg[y]) - Math.abs(agg[x]))
     .map(id => `<span class="aw-name">${botName(id)}</span> <b class="${agg[id] > 0 ? 'up' : 'down'}">${signedNum(agg[id])}</b>`);
+  const topIds = Object.keys(tops);
+  const topNote = topIds.length
+    ? ' &middot; ' + topIds.map(id => `<span class="aw-name">${botName(id)}</span> topped up`).join(', ')
+    : '';
   const where = lobby || rows.length > 1
     ? 'across the floor'
     : 'at ' + (AMBIENT_TITLE[rows[0].table] || rows[0].table);
   showAwayBar(
     `<span class="aw-lead">While you were away</span>` +
     `<span><b>${hands}</b> hand${hands === 1 ? '' : 's'} ${where}` +
-    (parts.length ? ' &middot; ' + parts.join(' &middot; ') : '') + '</span>'
+    (parts.length ? ' &middot; ' + parts.join(' &middot; ') : '') + topNote + '</span>'
   );
 }
 
@@ -3258,7 +3338,11 @@ function ambientLogLine(table, rows) {
   if (!row) return;
   const n = row.hands;
   const tail = row.last ? ' ' + row.last.text + '.' : '';
-  const msg = `You sat out \u2014 the regulars played ${n} hand${n === 1 ? '' : 's'}.${tail}`;
+  const topIds = Object.keys(row.toppedUp || {});
+  const topNote = topIds.length
+    ? ' ' + topIds.map(id => `${botName(id)} topped up at the cage`).join(', ') + '.'
+    : '';
+  const msg = `You sat out \u2014 the regulars played ${n} hand${n === 1 ? '' : 's'}.${tail}${topNote}`;
   if (table === 'holdem' || table === 'omaha') {
     if ($('#pkLog')) plog(msg, 'hl');
   } else if (table === 'blackjack') {
@@ -3521,7 +3605,9 @@ document.addEventListener('visibilitychange', () => {
 
 /* expose a couple of helpers for quick console testing */
 window.CASINO = { state, P, BJ, RL, BAC, openGame, goLobby, eval5, best5, bestHoldem, bestOmaha, cmpScore,
-  settleAmbient, settleTableAmbient, ambientPlayHand, ambientState, AMBIENT_TABLES, AMBIENT_HAND_MS, AMBIENT_MAX_HANDS };
+  settleAmbient, settleTableAmbient, ambientPlayHand, ambientState, ambientBanner, ambientLogLine,
+  bjBotShouldHit, BOT_REBUY,
+  AMBIENT_TABLES, AMBIENT_HAND_MS, AMBIENT_MAX_HANDS };
 
 </script>
 </body>

@@ -21,6 +21,7 @@ Open `index.html` in any modern browser — no build step, no dependencies, no n
 - Hand-built "Classic Vegas" art: walnut, green felt, gold trim, SVG court cards, damask card backs, 5/25/100/500 chips.
 - Progress is saved to `localStorage`, so the bankroll and the regulars survive a refresh.
 - The floor never sleeps: the four tables you are not sitting at keep dealing hands and settling real bot bankrolls, so a regular can win or lose money while you play elsewhere. Come back to a "while you were away" summary; catch-ups are capped at 12 hands and an hour per table.
+- Plays on phones and tablets: the HUD and felt reflow down to 320px wide, the action bar stays pinned to the bottom of the screen, and the roulette layout scrolls sideways so every number stays tappable.
 - Fast-forward toggle for quicker sessions, plus a sound toggle.
 
 ## Run
