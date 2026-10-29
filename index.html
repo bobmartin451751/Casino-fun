@@ -93,6 +93,31 @@ button{font-family:inherit;cursor:pointer}
 .hbtn:hover{background:rgba(217,180,91,.16);border-color:var(--line);color:var(--gold-2)}
 .hbtn:disabled{opacity:.35;cursor:not-allowed}
 
+/* ---------- "while you were away" bar ---------- */
+.away-bar{
+  position:sticky;top:56px;z-index:45;display:none;align-items:center;gap:12px;flex-wrap:wrap;
+  margin:0 20px;padding:9px 16px;border-radius:0 0 10px 10px;
+  background:linear-gradient(180deg, rgba(32,25,12,.97), rgba(16,13,7,.92));
+  border:1px solid var(--line);border-top:none;
+  box-shadow:0 10px 26px rgba(0,0,0,.6);
+  font-size:13px;color:#cfd8d0;
+}
+.away-bar.show{display:flex;animation:awayIn .35s ease}
+@keyframes awayIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+.away-bar .aw-lead{
+  font-family:Georgia,serif;font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--gold);white-space:nowrap;
+}
+.away-bar b{color:var(--gold-2);font-family:Georgia,serif}
+.away-bar b.up{color:#7fe0a3}
+.away-bar b.down{color:#ff8b7d}
+.away-bar .aw-name{color:#cfd8d0}
+.away-x{
+  margin-left:auto;background:none;border:none;color:#7d8a83;font-size:13px;
+  cursor:pointer;padding:2px 6px;line-height:1;
+}
+.away-x:hover{color:var(--gold-2)}
+
 /* ---------- screens ---------- */
 main{position:relative;z-index:2}
 .screen{display:none;padding:22px 24px 60px;max-width:1400px;margin:0 auto;animation:fadeUp .35s ease}
@@ -573,6 +598,8 @@ input[type=range]::-webkit-slider-thumb{
   </div>
 </header>
 
+<div id="awayBar" class="away-bar" role="status"></div>
+
 <main>
 <!-- ================= LOBBY ================= -->
 <section id="scr-lobby" class="screen active">
@@ -754,7 +781,8 @@ const state = {
   coins: 1000,
   bots: {},
   stats: { rounds: 0, wagered: 0, won: 0, lost: 0, biggestWin: 0, games: {} },
-  muted: false
+  muted: false,
+  ambient: { last: {} }
 };
 
 function loadState() {
@@ -766,13 +794,14 @@ function loadState() {
       if (o.bots) state.bots = o.bots;
       if (o.stats) Object.assign(state.stats, o.stats);
       if (typeof o.muted === 'boolean') state.muted = o.muted;
+      if (o.ambient && typeof o.ambient === 'object') state.ambient = o.ambient;
     }
   } catch (e) { /* corrupt save, ignore */ }
   state.coins = Math.max(0, Math.round(state.coins));
 }
 function saveState() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({
-    coins: state.coins, bots: state.bots, stats: state.stats, muted: state.muted
+    coins: state.coins, bots: state.bots, stats: state.stats, muted: state.muted, ambient: state.ambient
   })); } catch (e) {}
 }
 
@@ -856,6 +885,7 @@ $('#overReset').addEventListener('click', () => {
   state.coins = 1000;
   state.stats = { rounds: 0, wagered: 0, won: 0, lost: 0, biggestWin: 0, net: 0, games: {} };
   Object.keys(state.bots).forEach(k => { state.bots[k] = { stack: 1000, wins: 0, losses: 0, biggest: 0 }; });
+  state.ambient = { last: {} };
   overShown = false;
   $('#overText').textContent = OVER_TEXT_DEFAULT;
   $('#overlay').classList.remove('show');
@@ -2521,8 +2551,8 @@ function renderRouletteBots() {
     </div>`).join('');
 }
 
-function botRouletteBets() {
-  const outsides = [
+function rouletteOutsides() {
+  return [
     { label: 'Red', nums: [...RED_NUMS], pay: 1 },
     { label: 'Black', nums: Array.from({ length: 36 }, (_, i) => i + 1).filter(n => !RED_NUMS.has(n)), pay: 1 },
     { label: 'Odd', nums: Array.from({ length: 36 }, (_, i) => i + 1).filter(n => n % 2), pay: 1 },
@@ -2531,6 +2561,10 @@ function botRouletteBets() {
     { label: '3rd 12', nums: Array.from({ length: 12 }, (_, i) => i + 25), pay: 2 },
     { label: 'High', nums: Array.from({ length: 18 }, (_, i) => i + 19), pay: 1 }
   ];
+}
+
+function botRouletteBets() {
+  const outsides = rouletteOutsides();
   RL.bots.forEach(b => {
     const rec = botRecord(b.id);
     let amount = 25 + rnd(5) * 25;
@@ -2765,6 +2799,18 @@ function bacActionBar() {
   bar.appendChild(deal);
 }
 
+/* banker's third-card rule, shared by the table and the background floor */
+function bacBankerDraws(bankerTotal, playerThird) {
+  if (!playerThird) return bankerTotal <= 5;
+  const pt = playerThird.r === 1 ? 1 : playerThird.r >= 10 ? 0 : playerThird.r;
+  if (bankerTotal <= 2) return true;
+  if (bankerTotal === 3) return pt !== 8;
+  if (bankerTotal === 4) return pt >= 2 && pt <= 7;
+  if (bankerTotal === 5) return pt >= 4 && pt <= 7;
+  if (bankerTotal === 6) return pt === 6 || pt === 7;
+  return false;
+}
+
 async function bacDeal() {
   if (BAC.busy || BAC.phase !== 'bet') return;
   if (BAC.betAmount < 5) { toast('Bet at least 5 coins'); return; }
@@ -2814,15 +2860,7 @@ async function bacDeal() {
       await sleep(pace(560));
       bacLog(`Player draws ${cardText(playerThird)} \u2014 total ${p}.`);
     }
-    const pt = playerThird ? (playerThird.r === 1 ? 1 : playerThird.r >= 10 ? 0 : playerThird.r) : null;
-    let drawBanker = false;
-    if (playerThird === null) drawBanker = b <= 5;
-    else if (b <= 2) drawBanker = true;
-    else if (b === 3) drawBanker = pt !== 8;
-    else if (b === 4) drawBanker = pt >= 2 && pt <= 7;
-    else if (b === 5) drawBanker = pt >= 4 && pt <= 7;
-    else if (b === 6) drawBanker = pt === 6 || pt === 7;
-    if (drawBanker) {
+    if (bacBankerDraws(b, playerThird)) {
       const c = bacDraw();
       BAC.banker.push(c);
       b = bacTotal(BAC.banker);
@@ -2890,6 +2928,377 @@ function bacSettle(p, b) {
   renderBacBets();
   bacActionBar();
   checkBust();
+}
+
+/* ============================================================
+   AMBIENT FLOOR — the tables you are not sitting at keep dealing.
+   Every simulated hand settles real bot bankrolls, so a regular
+   can win or lose money while you are somewhere else.
+   ============================================================ */
+
+const AMBIENT_TABLES = ['holdem', 'omaha', 'blackjack', 'roulette', 'baccarat'];
+const AMBIENT_POKER_ROSTER = {
+  holdem: ['mona', 'reggie', 'lu', 'vince'],
+  omaha: ['ivy', 'deacon', 'mona', 'vince']
+};
+/* roughly how long one hand takes at each table */
+const AMBIENT_HAND_MS = {
+  holdem: 150000, omaha: 165000, blackjack: 65000, roulette: 95000, baccarat: 105000
+};
+const AMBIENT_MAX_HANDS = 12;            // per table, per catch-up
+const AMBIENT_MAX_ELAPSED = 60 * 60 * 1000;
+const AMBIENT_REBUY = 20;                // only top up a bot that can no longer bet
+const AMBIENT_TITLE = {
+  holdem: "Texas Hold'em", omaha: 'Omaha', blackjack: 'Blackjack',
+  roulette: 'Roulette', baccarat: 'Baccarat'
+};
+
+function ambientState() {
+  if (!state.ambient || typeof state.ambient !== 'object') state.ambient = {};
+  if (!state.ambient.last || typeof state.ambient.last !== 'object') state.ambient.last = {};
+  if (typeof state.ambient.rebuys !== 'number') state.ambient.rebuys = 0;
+  return state.ambient;
+}
+
+/* bot money, without the per-call save/sfx the on-screen helpers do */
+function ambientCredit(id, delta) {
+  const rec = botRecord(id);
+  rec.stack = Math.max(0, Math.round(rec.stack + delta));
+  if (delta > 0) {
+    rec.wins += delta;
+    if (delta > rec.biggest) rec.biggest = delta;
+  } else if (delta < 0) {
+    rec.losses += -delta;
+  }
+  return rec;
+}
+function ambientTopUp(ids) {
+  const a = ambientState();
+  ids.forEach(id => {
+    const rec = botRecord(id);
+    if (rec.stack < AMBIENT_REBUY) { rec.stack = 1000; a.rebuys++; }
+  });
+}
+function ambientTrack(deltas, id, delta) {
+  deltas[id] = (deltas[id] || 0) + delta;
+}
+
+/* ---------------- poker: pot split between the regulars ---------------- */
+function ambientPokerHand(table) {
+  const ids = AMBIENT_POKER_ROSTER[table];
+  const deck = shuffle(newDeck(1));
+  const board = deck.splice(0, 5);
+  const deltas = {};
+  const live = [];
+  let pot = 0;
+
+  ids.forEach(id => {
+    const rec = botRecord(id);
+    if (rec.stack < 10) return;
+    const ante = Math.min(10 + rnd(3) * 10, rec.stack);
+    rec.stack -= ante;
+    pot += ante;
+    live.push({ id, ante });
+  });
+  if (live.length < 2) {
+    live.forEach(s => { botRecord(s.id).stack += s.ante; });
+    ambientTopUp(ids);
+    return null;
+  }
+
+  const scored = live.map(s => {
+    const hole = deck.splice(0, table === 'omaha' ? 4 : 2);
+    const best = table === 'omaha' ? bestOmaha(hole, board) : bestHoldem(hole, board);
+    return { id: s.id, ante: s.ante, score: best.score, name: handName(best.score) };
+  });
+  let top = scored[0].score;
+  scored.forEach(h => { if (cmpScore(h.score, top) > 0) top = h.score; });
+  const winners = scored.filter(h => cmpScore(h.score, top) === 0);
+
+  const share = Math.floor(pot / winners.length);
+  let rest = pot - share * winners.length;
+  winners.forEach((w, i) => {
+    const add = share + (i < rest ? 1 : 0);
+    botRecord(w.id).stack += add;
+    ambientTrack(deltas, w.id, add - w.ante);
+  });
+  scored.forEach(h => { if (!winners.includes(h)) ambientTrack(deltas, h.id, -h.ante); });
+
+  ambientTopUp(ids);
+  return {
+    table,
+    text: winners.length > 1
+      ? `${winners.map(w => botName(w.id)).join(' & ')} chop ${fmt(pot)} (${winners[0].name})`
+      : `${botName(winners[0].id)} takes ${fmt(pot)} with ${winners[0].name}`,
+    deltas
+  };
+}
+
+/* ---------------- blackjack: one dealer, both regulars ---------------- */
+function ambientBlackjackHand() {
+  const ids = ['reggie', 'ivy'];
+  const shoe = shuffle(newDeck(6));
+  let spare = shoe;
+  const draw = () => {
+    if (!spare.length) spare = shuffle(newDeck(6));
+    return spare.pop();
+  };
+  const deltas = {};
+  const dealer = [draw(), draw()];
+  const seats = [];
+
+  ids.forEach(id => {
+    const rec = botRecord(id);
+    if (rec.stack < 5) return;
+    const bet = Math.min(25, Math.max(5, Math.floor(rec.stack / 5) * 5));
+    rec.stack -= bet;
+    seats.push({ id, bet, cards: [draw(), draw()] });
+  });
+  if (!seats.length) { ambientTopUp(ids); return null; }
+
+  seats.forEach(s => {
+    let guard = 0;
+    while (bjValue(s.cards).total < 17 && guard++ < 12) s.cards.push(draw());
+  });
+  const liveHand = seats.some(s => bjValue(s.cards).total <= 21);
+  if (liveHand) {
+    let guard = 0;
+    while (bjValue(dealer).total < 17 && guard++ < 12) dealer.push(draw());
+  }
+
+  const dv = bjValue(dealer);
+  const dealerBJ = dv.total === 21 && dealer.length === 2;
+  const bits = [];
+  seats.forEach(s => {
+    const v = bjValue(s.cards);
+    const playerBJ = v.total === 21 && s.cards.length === 2;
+    let ret = 0, res = 'lost';
+    if (v.total > 21) { ret = 0; res = 'busted'; }
+    else if (playerBJ && !dealerBJ) { ret = Math.round(s.bet * 2.5); res = 'blackjack'; }
+    else if (dealerBJ && !playerBJ) { ret = 0; res = 'lost'; }
+    else if (dv.total > 21 || v.total > dv.total) { ret = s.bet * 2; res = 'won'; }
+    else if (v.total === dv.total) { ret = s.bet; res = 'pushed'; }
+    botRecord(s.id).stack += ret;
+    ambientTrack(deltas, s.id, ret - s.bet);
+    bits.push(`${botName(s.id)} ${res}`);
+  });
+
+  ambientTopUp(ids);
+  return {
+    table: 'blackjack',
+    text: `dealer ${dv.total > 21 ? 'bust' : dv.total} \u2014 ${bits.join(', ')}`,
+    deltas
+  };
+}
+
+/* ---------------- roulette: one spin, both regulars ---------------- */
+function ambientRouletteSpin() {
+  const ids = ['mona', 'vince'];
+  const deltas = {};
+  const outsides = rouletteOutsides();
+  const winNum = RL_ORDER[rnd(37)];
+  const bits = [];
+
+  ids.forEach(id => {
+    const rec = botRecord(id);
+    if (rec.stack < 5) return;
+    let amount = 10 + rnd(4) * 10;
+    if (rec.stack < amount) amount = Math.max(5, Math.floor(rec.stack / 5) * 5);
+    const straight = 1 + rnd(36);
+    const bet = Math.random() < 0.72 ? pick(outsides) : { label: 'Straight ' + straight, nums: [straight], pay: 35 };
+    const won = bet.nums.includes(winNum);
+    const ret = won ? amount * (bet.pay + 1) : 0;
+    rec.stack = Math.max(0, rec.stack - amount);
+    rec.stack += ret;
+    ambientTrack(deltas, id, ret - amount);
+    bits.push(`${botName(id)} ${won ? 'paid ' + fmt(ret) : 'lost ' + fmt(amount)}`);
+  });
+  if (!bits.length) { ambientTopUp(ids); return null; }
+
+  ambientTopUp(ids);
+  return {
+    table: 'roulette',
+    text: `${winNum} ${winNum === 0 ? 'green' : isRed(winNum) ? 'red' : 'black'} \u2014 ${bits.join(', ')}`,
+    deltas
+  };
+}
+
+/* ---------------- baccarat: punto banco, shared third-card rules ---------------- */
+function ambientBaccaratHand() {
+  const ids = ['lu', 'deacon'];
+  const deltas = {};
+  let shoe = shuffle(newDeck(8));
+  const draw = () => {
+    if (!shoe.length) shoe = shuffle(newDeck(8));
+    return shoe.pop();
+  };
+
+  const player = [draw(), draw()];
+  const banker = [draw(), draw()];
+  let pt = bacTotal(player), bt = bacTotal(banker);
+  if (pt < 8 && bt < 8) {
+    let third = null;
+    if (pt <= 5) { third = draw(); player.push(third); pt = bacTotal(player); }
+    if (bacBankerDraws(bt, third)) { banker.push(draw()); bt = bacTotal(banker); }
+  }
+  const w = pt > bt ? 'P' : bt > pt ? 'B' : 'T';
+  const bits = [];
+
+  ids.forEach(id => {
+    const rec = botRecord(id);
+    if (rec.stack < 5) return;
+    let amount = 10 + rnd(4) * 10;
+    if (rec.stack < amount) amount = Math.max(5, Math.floor(rec.stack / 5) * 5);
+    const side = pick(['player', 'banker', 'banker', 'player', 'tie']);
+    let ret = 0;
+    if (side === 'tie' && w === 'T') ret = amount * 9;
+    else if (w === 'T') ret = amount;
+    else if (side === 'player' && w === 'P') ret = amount * 2;
+    else if (side === 'banker' && w === 'B') ret = amount + Math.floor(amount * 0.95);
+    rec.stack = Math.max(0, rec.stack - amount);
+    rec.stack += ret;
+    ambientTrack(deltas, id, ret - amount);
+    bits.push(`${botName(id)} ${ret > amount ? 'won ' + fmt(ret - amount) : ret === amount ? 'pushed' : 'lost ' + fmt(amount)}`);
+  });
+  if (!bits.length) { ambientTopUp(ids); return null; }
+
+  ambientTopUp(ids);
+  return {
+    table: 'baccarat',
+    text: `player ${pt}, banker ${bt}${w === 'T' ? ' (tie)' : ''} \u2014 ${bits.join(', ')}`,
+    deltas
+  };
+}
+
+function ambientPlayHand(table) {
+  if (table === 'holdem' || table === 'omaha') return ambientPokerHand(table);
+  if (table === 'blackjack') return ambientBlackjackHand();
+  if (table === 'roulette') return ambientRouletteSpin();
+  if (table === 'baccarat') return ambientBaccaratHand();
+  return null;
+}
+
+/* how many hands fit in the window since this table was last settled */
+function settleTableAmbient(table) {
+  const a = ambientState();
+  const now = Date.now();
+  if (typeof a.last[table] !== 'number') { a.last[table] = now; return null; }
+
+  const elapsed = clamp(now - a.last[table], 0, AMBIENT_MAX_ELAPSED);
+  const interval = AMBIENT_HAND_MS[table];
+  const fits = Math.floor(elapsed / interval);
+  const wanted = Math.min(AMBIENT_MAX_HANDS, fits);
+  /* a capped catch-up must forget the excess, or it replays on the next settle */
+  a.last[table] = fits > AMBIENT_MAX_HANDS ? now : now - (elapsed - wanted * interval);
+  if (!wanted) return null;
+
+  const ids = BOT_DEFS.map(d => d.id);
+  const before = {};
+  ids.forEach(id => { before[id] = botRecord(id).stack; });
+  const rebuysBefore = a.rebuys || 0;
+  let played = 0, last = null;
+  for (let i = 0; i < wanted; i++) {
+    const h = ambientPlayHand(table);
+    if (!h) break;
+    played++;
+    last = h;
+  }
+  if (!played) return null;
+
+  const deltas = {};
+  ids.forEach(id => {
+    const d = botRecord(id).stack - before[id];
+    if (d) deltas[id] = d;
+  });
+  return { table, hands: played, deltas, last, rebuys: (a.rebuys || 0) - rebuysBefore };
+}
+
+/* settle every table except `exceptId` (the one the player is watching) */
+function settleAmbient(exceptId) {
+  const a = ambientState();
+  const now = Date.now();
+  const rows = [];
+  AMBIENT_TABLES.forEach(id => {
+    if (id === exceptId) { a.last[id] = now; return; }
+    const row = settleTableAmbient(id);
+    if (row) rows.push(row);
+  });
+  saveState();
+  return rows;
+}
+
+/* ---------------- reporting ---------------- */
+function signedNum(n) {
+  const v = Math.round(n);
+  return (v > 0 ? '+' : v < 0 ? '\u2212' : '') + fmt(Math.abs(v));
+}
+
+function ambientBanner(rows, lobby) {
+  if (!rows || !rows.length) return;
+  const hands = rows.reduce((a, r) => a + r.hands, 0);
+  const agg = {};
+  rows.forEach(r => Object.keys(r.deltas).forEach(id => ambientTrack(agg, id, r.deltas[id])));
+  const parts = Object.keys(agg)
+    .filter(id => Math.round(agg[id]) !== 0)
+    .sort((x, y) => Math.abs(agg[y]) - Math.abs(agg[x]))
+    .map(id => `<span class="aw-name">${botName(id)}</span> <b class="${agg[id] > 0 ? 'up' : 'down'}">${signedNum(agg[id])}</b>`);
+  const where = lobby || rows.length > 1
+    ? 'across the floor'
+    : 'at ' + (AMBIENT_TITLE[rows[0].table] || rows[0].table);
+  showAwayBar(
+    `<span class="aw-lead">While you were away</span>` +
+    `<span><b>${hands}</b> hand${hands === 1 ? '' : 's'} ${where}` +
+    (parts.length ? ' &middot; ' + parts.join(' &middot; ') : '') + '</span>'
+  );
+}
+
+function ambientLogLine(table, rows) {
+  if (!rows || !rows.length) return;
+  const row = rows.find(r => r.table === table);
+  if (!row) return;
+  const n = row.hands;
+  const tail = row.last ? ' ' + row.last.text + '.' : '';
+  const msg = `You sat out \u2014 the regulars played ${n} hand${n === 1 ? '' : 's'}.${tail}`;
+  if (table === 'holdem' || table === 'omaha') {
+    if ($('#pkLog')) plog(msg, 'hl');
+  } else if (table === 'blackjack') {
+    if ($('#bjLog')) bjLog(msg);
+  } else if (table === 'baccarat') {
+    if ($('#bacLog')) bacLog(msg);
+  }
+}
+
+let awayBarTimer = null;
+function hideAwayBar() {
+  const el = $('#awayBar');
+  if (el) el.classList.remove('show');
+  clearTimeout(awayBarTimer);
+}
+function showAwayBar(html) {
+  const el = $('#awayBar');
+  if (!el) return;
+  el.innerHTML = html + '<button class="away-x" type="button" aria-label="Dismiss">\u2715</button>';
+  el.classList.add('show');
+  const x = el.querySelector('.away-x');
+  if (x) x.onclick = hideAwayBar;
+  clearTimeout(awayBarTimer);
+  awayBarTimer = setTimeout(hideAwayBar, 12000);
+}
+
+/* the open table's bot panels are read from live records, so refresh them */
+function refreshAmbientUI() {
+  if (!currentGame) return;
+  if (currentGame === 'holdem' || currentGame === 'omaha') renderPoker();
+  else if (currentGame === 'blackjack') renderBJ();
+  else if (currentGame === 'roulette') { renderRouletteBots(); renderRouletteBets(); }
+  else if (currentGame === 'baccarat') renderBacBets();
+}
+
+/* leave the current table's clock at "now" so the time you spent playing
+   that table is never replayed behind your back */
+function stampTableClock(id) {
+  if (!id) return;
+  ambientState().last[id] = Date.now();
 }
 
 /* ============================================================
@@ -3030,16 +3439,21 @@ function goLobby() {
   if (RL.spinning) { toast('The wheel is still spinning'); return; }
   if (BAC.busy) { toast('Wait for the cards'); return; }
   if (currentGame === 'roulette') leaveRoulette();
+  stampTableClock(currentGame);
+  const away = settleAmbient(null);
   P.turnSeat = -1;
   currentGame = null;
   showScreen('lobby');
   renderLobbyPanels();
   updateHUD(false);
+  if (away.length) ambientBanner(away, true);
 }
 
 function openGame(id) {
   const g = GAMES.find(x => x.id === id);
   if (!g) return;
+  stampTableClock(currentGame);
+  const away = settleAmbient(null);
   currentGame = id;
   showScreen(g.screen);
   if (id === 'holdem') enterPoker('holdem');
@@ -3047,6 +3461,8 @@ function openGame(id) {
   else if (id === 'blackjack') enterBlackjack();
   else if (id === 'roulette') enterRoulette();
   else if (id === 'baccarat') enterBaccarat();
+  const mine = away.filter(r => r.table === id);
+  if (mine.length) { ambientBanner(mine, false); ambientLogLine(id, away); }
 }
 
 $('#hudLobby').addEventListener('click', goLobby);
@@ -3076,7 +3492,9 @@ document.addEventListener('keydown', ev => {
 loadState();
 updateHUD(false);
 buildLobby();
+const bootAway = settleAmbient(null);
 renderLobbyPanels();
+if (bootAway.length) ambientBanner(bootAway, true);
 if (state.coins <= 0) {
   overShown = false;
   checkBust();
@@ -3087,11 +3505,23 @@ window.addEventListener('beforeunload', () => {
     state.coins += RL.bets.reduce((a, b) => a + b.amount, 0);
     RL.bets = [];
   }
+  stampTableClock(currentGame);
   saveState();
 });
 
+/* coming back to a hidden tab: the other four tables kept dealing */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { saveState(); return; }
+  const rows = settleAmbient(currentGame);
+  if (rows.length) {
+    refreshAmbientUI();
+    ambientBanner(rows, !currentGame);
+  }
+});
+
 /* expose a couple of helpers for quick console testing */
-window.CASINO = { state, P, BJ, RL, BAC, openGame, goLobby, eval5, best5, bestHoldem, bestOmaha, cmpScore };
+window.CASINO = { state, P, BJ, RL, BAC, openGame, goLobby, eval5, best5, bestHoldem, bestOmaha, cmpScore,
+  settleAmbient, settleTableAmbient, ambientPlayHand, ambientState, AMBIENT_TABLES, AMBIENT_HAND_MS, AMBIENT_MAX_HANDS };
 
 </script>
 </body>

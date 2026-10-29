@@ -20,6 +20,7 @@ Open `index.html` in any modern browser — no build step, no dependencies, no n
 - Six bot players with persistent chip stacks, win/loss records and a lobby leaderboard.
 - Hand-built "Classic Vegas" art: walnut, green felt, gold trim, SVG court cards, damask card backs, 5/25/100/500 chips.
 - Progress is saved to `localStorage`, so the bankroll and the regulars survive a refresh.
+- The floor never sleeps: the four tables you are not sitting at keep dealing hands and settling real bot bankrolls, so a regular can win or lose money while you play elsewhere. Come back to a "while you were away" summary; catch-ups are capped at 12 hands and an hour per table.
 - Fast-forward toggle for quicker sessions, plus a sound toggle.
 
 ## Run
