@@ -23,6 +23,7 @@ Open `index.html` in any modern browser — no build step, no dependencies, no n
 - The floor never sleeps: the four tables you are not sitting at keep dealing hands and settling real bot bankrolls, so a regular can win or lose money while you play elsewhere. Come back to a "while you were away" summary; catch-ups are capped at 12 hands and an hour per table.
 - Plays on phones and tablets: the HUD and felt reflow down to 320px wide, the action bar stays pinned to the bottom of the screen, and the roulette layout scrolls sideways so every number stays tappable.
 - Fast-forward toggle for quicker sessions, plus a sound toggle.
+- There is a back room. It has no sign, and it does not exist while you can still afford a bet. When the floor stops taking your money, look behind the cashier — the house will toss you for everything you have left: heads, tails, or the impossible middle. Hit the middle and it pays 10,000.
 
 ## Run
 
