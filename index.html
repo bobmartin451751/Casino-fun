@@ -2758,17 +2758,20 @@ function renderRouletteBets() {
     const amt = el.querySelector('.amt');
     if (amt) amt.textContent = b ? fmt(b.amount) : '';
   });
+  /* the back room is only a dead end when there is nothing left to do:
+     chips already on the felt are still a live turn, so keep the footer up */
+  const deadEnd = backroomOpen() && RL.bets.length === 0;
   const slot = $('#rlBackroom');
   if (slot) {
-    if (backroomOpen()) {
-      slot.innerHTML = '<span class="hint">Nothing left to bet.</span> ' + backroomHintHTML();
+    if (deadEnd) {
+      slot.innerHTML = backroomHintHTML();
       backroomHint(slot);
     } else if (slot.innerHTML) {
       slot.innerHTML = '';
     }
   }
   const foot = document.querySelector('#scr-roulette .bet-footer');
-  if (foot) foot.style.display = backroomOpen() ? 'none' : '';
+  if (foot) foot.style.display = deadEnd ? 'none' : '';
 
   $('#rlTotalBet').textContent = fmt(total);
   $('#rlNote').textContent = `Balance ${fmt(state.coins)} coins`;
